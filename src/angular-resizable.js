@@ -1,3 +1,4 @@
+
 angular.module('angularResizable', [])
     .directive('resizable', function() {
         var toCall;
@@ -15,30 +16,22 @@ angular.module('angularResizable', [])
         return {
             restrict: 'AE',
             scope: {
-                rDirections: '=',
-                rCenteredX: '=',
-                rCenteredY: '=',
-                rWidth: '=',
-                rHeight: '=',
-                rFlex: '=',
-                rGrabber: '@',
-                rDisabled: '@',
-                rNoThrottle: '=',
-                resizable: '@',
+                rDirections: "=",
+                rCenteredX: "=",
+                rCenteredY: "=",
+                rWidth: "=",
+                rHeight: "=",
+                rFlex: "=",
+                rGrabber: "@"
             },
             link: function(scope, element, attr) {
-                if (scope.resizable === 'false') return;
-
-                var flexBasis = 'flexBasis' in document.documentElement.style ? 'flexBasis' :
-                    'webkitFlexBasis' in document.documentElement.style ? 'webkitFlexBasis' :
-                    'msFlexPreferredSize' in document.documentElement.style ? 'msFlexPreferredSize' : 'flexBasis';
 
                 // register watchers on width and height attributes if they are set
                 scope.$watch('rWidth', function(value){
-                    element[0].style[scope.rFlex ? flexBasis : 'width'] = scope.rWidth + 'px';
+                    element[0].style.width = scope.rWidth + 'px';
                 });
                 scope.$watch('rHeight', function(value){
-                    element[0].style[scope.rFlex ? flexBasis : 'height'] = scope.rHeight + 'px';
+                    element[0].style.height = scope.rHeight + 'px';
                 });
 
                 element.addClass('resizable');
@@ -46,7 +39,7 @@ angular.module('angularResizable', [])
                 var style = window.getComputedStyle(element[0], null),
                     w,
                     h,
-                    dir = scope.rDirections || ['right'],
+                    dir = scope.rDirections,
                     vx = scope.rCenteredX ? 2 : 1, // if centered double velocity
                     vy = scope.rCenteredY ? 2 : 1, // if centered double velocity
                     inner = scope.rGrabber ? scope.rGrabber : '<span></span>',
@@ -55,78 +48,58 @@ angular.module('angularResizable', [])
                     axis,
                     info = {};
 
-                var updateInfo = function(e) {
+                var updateInfo = function() {
                     info.width = false; info.height = false;
-                    if(axis === 'x')
-                        info.width = parseInt(element[0].style[scope.rFlex ? flexBasis : 'width']);
+                    if(axis == 'x')
+                        info.width = scope.rFlex ? parseInt(element[0].style.flexBasis) : parseInt(element[0].style.width);
                     else
-                        info.height = parseInt(element[0].style[scope.rFlex ? flexBasis : 'height']);
+                        info.height = scope.rFlex ? parseInt(element[0].style.flexBasis) : parseInt(element[0].style.height);
                     info.id = element[0].id;
-                    info.evt = e;
-                };
-
-                var getClientX = function(e) {
-                    return e.touches ? e.touches[0].clientX : e.clientX;
-                };
-
-                var getClientY = function(e) {
-                    return e.touches ? e.touches[0].clientY : e.clientY;
-                };
+                }
 
                 var dragging = function(e) {
-                    var prop, offset = axis === 'x' ? start - getClientX(e) : start - getClientY(e);
+                    var offset = axis == 'x' ? start - e.clientX : start - e.clientY;
                     switch(dragDir) {
                         case 'top':
-                            prop = scope.rFlex ? flexBasis : 'height';
-                            element[0].style[prop] = h + (offset * vy) + 'px';
-                            break;
-                        case 'bottom':
-                            prop = scope.rFlex ? flexBasis : 'height';
-                            element[0].style[prop] = h - (offset * vy) + 'px';
+                            if(scope.rFlex) { element[0].style.flexBasis = h + (offset * vy) + 'px'; }
+                            else {            element[0].style.height = h + (offset * vy) + 'px'; }
                             break;
                         case 'right':
-                            prop = scope.rFlex ? flexBasis : 'width';
-                            element[0].style[prop] = w - (offset * vx) + 'px';
+                            if(scope.rFlex) { element[0].style.flexBasis = w - (offset * vx) + 'px'; }
+                            else {            element[0].style.width = w - (offset * vx) + 'px'; }
+                            break;
+                        case 'bottom':
+                            if(scope.rFlex) { element[0].style.flexBasis = h - (offset * vy) + 'px'; }
+                            else {            element[0].style.height = h - (offset * vy) + 'px'; }
                             break;
                         case 'left':
-                            prop = scope.rFlex ? flexBasis : 'width';
-                            element[0].style[prop] = w + (offset * vx) + 'px';
+                            if(scope.rFlex) { element[0].style.flexBasis = w + (offset * vx) + 'px'; }
+                            else {            element[0].style.width = w + (offset * vx) + 'px'; }
                             break;
                     }
-                    updateInfo(e);
-                    function resizingEmit(){
-                        scope.$emit('angular-resizable.resizing', info);
-                    }
-                    if (scope.rNoThrottle) {
-                        resizingEmit();
-                    } else {
-                        throttle(resizingEmit);
-                    }
+                    updateInfo();
+                    throttle(function() { scope.$emit("angular-resizable.resizing", info);});
                 };
                 var dragEnd = function(e) {
                     updateInfo();
-                    scope.$emit('angular-resizable.resizeEnd', info);
+                    scope.$emit("angular-resizable.resizeEnd", info);
                     scope.$apply();
                     document.removeEventListener('mouseup', dragEnd, false);
                     document.removeEventListener('mousemove', dragging, false);
-                    document.removeEventListener('touchend', dragEnd, false);
-                    document.removeEventListener('touchmove', dragging, false);
                     element.removeClass('no-transition');
                 };
                 var dragStart = function(e, direction) {
                     dragDir = direction;
-                    axis = dragDir === 'left' || dragDir === 'right' ? 'x' : 'y';
-                    start = axis === 'x' ? getClientX(e) : getClientY(e);
-                    w = parseInt(style.getPropertyValue('width'));
-                    h = parseInt(style.getPropertyValue('height'));
+                    axis = dragDir == 'left' || dragDir == 'right' ? 'x' : 'y';
+                    start = axis == 'x' ? e.clientX : e.clientY;
+                    w = parseInt(style.getPropertyValue("width"));
+                    h = parseInt(style.getPropertyValue("height"));
 
                     //prevent transition while dragging
                     element.addClass('no-transition');
 
                     document.addEventListener('mouseup', dragEnd, false);
                     document.addEventListener('mousemove', dragging, false);
-                    document.addEventListener('touchend', dragEnd, false);
-                    document.addEventListener('touchmove', dragging, false);
 
                     // Disable highlighting while dragging
                     if(e.stopPropagation) e.stopPropagation();
@@ -134,30 +107,43 @@ angular.module('angularResizable', [])
                     e.cancelBubble = true;
                     e.returnValue = false;
 
-                    updateInfo(e);
-                    scope.$emit('angular-resizable.resizeStart', info);
+                    updateInfo();
+                    scope.$emit("angular-resizable.resizeStart", info);
                     scope.$apply();
                 };
 
-                dir.forEach(function (direction) {
-                    var grabber = document.createElement('div');
 
-                    // add class for styling purposes
-                    grabber.setAttribute('class', 'rg-' + direction);
-                    grabber.innerHTML = inner;
-                    element[0].appendChild(grabber);
-                    grabber.ondragstart = function() { return false; };
+                // var toggleWidth = 0;
+                for(var i=0;i<dir.length;i++) {
+                    (function () {
+                        var grabber = document.createElement('div'),
+                            direction = dir[i];
 
-                    var down = function(e) {
-                        var disabled = (scope.rDisabled === 'true');
-                        if (!disabled && (e.which === 1 || e.touches)) {
-                            // left mouse click or touch screen
+                        // add class for styling purposes
+                        grabber.setAttribute('class', 'rg-' + dir[i]);
+                        grabber.innerHTML = inner;
+                        element[0].appendChild(grabber);
+                        grabber.ondragstart = function() { return false }
+
+                        var t = document.createElement('div');
+                        t.setAttribute('class', 'rg-'+dir[i]+'-toggle');
+
+                        element[0].appendChild(t);
+                        t.addEventListener('click', function(){
+                                scope.rWidth = 0;
+
+                                if(scope.rFlex) { element[0].style.flexBasis = scope.rWidth + 'px'; }
+                                else {            element[0].style.width = scope.rWidth + 'px'; }
+
+                            scope.$emit("angular-resizable.resizeEnd", info);
+                            scope.$apply();
+                        }, false);
+                        grabber.addEventListener('mousedown', function(e) {
                             dragStart(e, direction);
-                        }
-                    };
-                    grabber.addEventListener('mousedown', down, false);
-                    grabber.addEventListener('touchstart', down, false);
-                });
+                        }, false);
+                    }())
+                }
+
             }
-        };
+        }
     });
